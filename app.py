@@ -4,7 +4,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score, mean_absolute_error
 from sklearn.preprocessing import LabelEncoder
 import warnings
@@ -17,48 +17,26 @@ st.set_page_config(page_title="AI Sales Intelligence", layout="wide", page_icon=
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;600;800&display=swap');
-
 * { box-sizing: border-box; }
-
 .stApp { background: #070b14; color: #dde4f0; font-family: 'Outfit', sans-serif; }
-
 h1, h2, h3 { font-family: 'Space Mono', monospace; letter-spacing: -0.03em; }
-
 [data-testid="metric-container"] {
     background: linear-gradient(135deg, #0d1525 0%, #111a2e 100%);
-    border: 1px solid #1e2d4a;
-    border-radius: 12px;
-    padding: 1rem 1.4rem;
+    border: 1px solid #1e2d4a; border-radius: 12px; padding: 1rem 1.4rem;
 }
-
-[data-testid="stSidebar"] {
-    background: #0a0f1e;
-    border-right: 1px solid #1a2540;
-}
-
+[data-testid="stSidebar"] { background: #0a0f1e; border-right: 1px solid #1a2540; }
 .section-tag {
-    font-family: 'Space Mono', monospace;
-    font-size: 0.65rem;
-    color: #3b82f6;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    margin-bottom: 0.2rem;
+    font-family: 'Space Mono', monospace; font-size: 0.65rem; color: #3b82f6;
+    letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.2rem;
 }
-
 .insight-card {
     background: linear-gradient(135deg, #0d1525, #111e38);
-    border: 1px solid #1e3058;
-    border-radius: 10px;
-    padding: 1rem 1.2rem;
-    margin-bottom: 0.8rem;
-    font-size: 0.9rem;
-    color: #94b8ff;
+    border: 1px solid #1e3058; border-radius: 10px;
+    padding: 1rem 1.2rem; margin-bottom: 0.8rem; font-size: 0.9rem; color: #94b8ff;
 }
-
 .stTabs [data-baseweb="tab-list"] { gap: 4px; background: #0a0f1e; border-radius: 10px; padding: 4px; }
 .stTabs [data-baseweb="tab"] { background: transparent; border-radius: 8px; color: #7090b0; font-family: 'Space Mono', monospace; font-size: 0.75rem; }
 .stTabs [aria-selected="true"] { background: #1a3060 !important; color: #60a0ff !important; }
-
 div[data-testid="stDataFrame"] { border: 1px solid #1a2540; border-radius: 10px; overflow: hidden; }
 </style>
 """, unsafe_allow_html=True)
@@ -73,16 +51,13 @@ def load_data():
     df['rating'] = pd.to_numeric(df['rating'], errors='coerce')
     df['rating_count'] = pd.to_numeric(df['rating_count'].replace(',', '', regex=True), errors='coerce')
     df.dropna(subset=['discounted_price', 'rating', 'rating_count'], inplace=True)
-
     df['demand_score'] = df['rating'] * np.log1p(df['rating_count'])
     df['value_score'] = df['rating'] / (df['discounted_price'] + 1) * 1000
     df['savings'] = df['actual_price'] - df['discounted_price']
     df['main_category'] = df['category'].apply(lambda x: str(x).split('|')[0].strip())
     df['sub_category'] = df['category'].apply(lambda x: str(x).split('|')[1].strip() if '|' in str(x) else '')
-    df['rating_band'] = pd.cut(df['rating'], bins=[0,2,3,4,4.5,5],
-                                labels=['<2★','2–3★','3–4★','4–4.5★','4.5–5★'])
-    df['price_tier'] = pd.qcut(df['discounted_price'], q=4,
-                                labels=['Budget','Mid','Premium','Luxury'])
+    df['rating_band'] = pd.cut(df['rating'], bins=[0,2,3,4,4.5,5], labels=['<2★','2–3★','3–4★','4–4.5★','4.5–5★'])
+    df['price_tier'] = pd.qcut(df['discounted_price'], q=4, labels=['Budget','Mid','Premium','Luxury'])
     return df
 
 df = load_data()
@@ -94,20 +69,11 @@ with st.sidebar:
     categories = sorted(df['main_category'].unique())
     selected_cats = st.multiselect("Categories", categories, default=categories[:4])
     st.markdown("---")
-    price_range = st.slider("Price Range (₹)", int(df['discounted_price'].min()),
-                             int(df['discounted_price'].max()),
-                             (0, int(df['discounted_price'].quantile(0.9))))
-    min_rating = st.slider("Min Rating", 1.0, 5.0, 3.5, 0.1)
-    st.markdown("---")
     sort_by = st.selectbox("Sort By", ["demand_score", "value_score", "discounted_price", "rating"])
     top_n = st.slider("Top N Products", 5, 30, 10)
 
 # ── FILTER ────────────────────────────────────────────────────────────────────
-fdf = df[
-    df['main_category'].isin(selected_cats) &
-    df['discounted_price'].between(*price_range) &
-    (df['rating'] >= min_rating)
-].copy()
+fdf = df[df['main_category'].isin(selected_cats)].copy()
 
 # ── HEADER ────────────────────────────────────────────────────────────────────
 st.markdown('<p class="section-tag">// Amazon Product Intelligence</p>', unsafe_allow_html=True)
@@ -118,8 +84,8 @@ k1, k2, k3, k4, k5 = st.columns(5)
 k1.metric("Products", f"{len(fdf):,}", f"{len(fdf)-len(df)//2:+,}")
 k2.metric("Avg Rating", f"{fdf['rating'].mean():.2f} ★")
 k3.metric("Avg Price", f"₹{int(fdf['discounted_price'].mean()):,}")
-k4.metric("Avg Discount", f"{fdf['discount_percentage'].mean():.1f}%" if 'discount_percentage' in fdf else "N/A")
-k5.metric("Avg Savings", f"₹{int(fdf['savings'].mean()):,}" if 'savings' in fdf else "N/A")
+k4.metric("Avg Discount", f"{fdf['discount_percentage'].mean():.1f}%")
+k5.metric("Avg Savings", f"₹{int(fdf['savings'].mean()):,}")
 
 st.divider()
 
@@ -131,10 +97,9 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Overview", "🏆 Top Products", "�
 # ══════════════════════════════════════════════════════════════════════════════
 with tab1:
     col1, col2 = st.columns(2)
-
     with col1:
         st.markdown('<p class="section-tag">// Category × Rating Heatmap</p>', unsafe_allow_html=True)
-        heat = fdf.groupby(['main_category','rating_band']).size().unstack(fill_value=0)
+        heat = fdf.groupby(['main_category','rating_band'], observed=True).size().unstack(fill_value=0)
         fig = px.imshow(heat, text_auto=True, color_continuous_scale="Blues",
                         labels=dict(x="Rating Band", y="Category", color="Count"))
         fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
@@ -146,8 +111,7 @@ with tab1:
         tier_counts = fdf['price_tier'].value_counts().reset_index()
         fig = px.pie(tier_counts, names='price_tier', values='count',
                      color_discrete_sequence=['#1e40af','#2563eb','#3b82f6','#60a5fa'], hole=0.55)
-        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color='#aac0e0',
-                          margin=dict(l=0,r=0,t=10,b=0))
+        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color='#aac0e0', margin=dict(l=0,r=0,t=10,b=0))
         st.plotly_chart(fig, use_container_width=True)
 
     col3, col4 = st.columns(2)
@@ -172,7 +136,6 @@ with tab1:
 # ══════════════════════════════════════════════════════════════════════════════
 with tab2:
     top_df = fdf.nlargest(top_n, sort_by)
-
     st.markdown(f'<p class="section-tag">// Top {top_n} Products by {sort_by}</p>', unsafe_allow_html=True)
 
     col1, col2 = st.columns([2, 1])
@@ -206,7 +169,6 @@ with tab2:
 # ══════════════════════════════════════════════════════════════════════════════
 with tab3:
     col1, col2 = st.columns(2)
-
     with col1:
         st.markdown('<p class="section-tag">// Avg Price by Category</p>', unsafe_allow_html=True)
         avg_price = fdf.groupby('main_category')['discounted_price'].mean().sort_values(ascending=False).reset_index()
@@ -218,13 +180,12 @@ with tab3:
 
     with col2:
         st.markdown('<p class="section-tag">// Discount % vs Savings</p>', unsafe_allow_html=True)
-        if 'discount_percentage' in fdf and 'savings' in fdf:
-            fig = px.scatter(fdf.sample(min(500, len(fdf))), x='discount_percentage', y='savings',
-                             color='rating', size='rating_count', size_max=20,
-                             color_continuous_scale='Blues', hover_name='product_name')
-            fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                              font_color='#aac0e0', margin=dict(l=0,r=0,t=10,b=0))
-            st.plotly_chart(fig, use_container_width=True)
+        fig = px.scatter(fdf.sample(min(500, len(fdf))), x='discount_percentage', y='savings',
+                         color='rating', size='rating_count', size_max=20,
+                         color_continuous_scale='Blues', hover_name='product_name')
+        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                          font_color='#aac0e0', margin=dict(l=0,r=0,t=10,b=0))
+        st.plotly_chart(fig, use_container_width=True)
 
     st.markdown('<p class="section-tag">// Demand Score by Category (Box Plot)</p>', unsafe_allow_html=True)
     fig = px.box(fdf, x='main_category', y='demand_score', color='main_category',
@@ -251,23 +212,18 @@ with tab4:
     else:
         le = LabelEncoder()
         fdf['cat_enc'] = le.fit_transform(fdf['main_category'])
-
-        FEATURES = ['rating', 'rating_count', 'discount_percentage', 'cat_enc'] if 'discount_percentage' in fdf else ['rating', 'rating_count', 'cat_enc']
-        FEATURES = [f for f in FEATURES if f in fdf.columns]
+        FEATURES = [f for f in ['rating', 'rating_count', 'discount_percentage', 'cat_enc'] if f in fdf.columns]
         X = fdf[FEATURES]
         y = fdf['discounted_price']
-
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
         col_m1, col_m2 = st.columns(2)
-
         with col_m1:
             st.markdown('<p class="section-tag">// Random Forest</p>', unsafe_allow_html=True)
             rf = RandomForestRegressor(n_estimators=100, random_state=42)
             rf.fit(X_train, y_train)
-            rf_preds = rf.predict(X_test)
-            rf_r2 = r2_score(y_test, rf_preds)
-            rf_mae = mean_absolute_error(y_test, rf_preds)
+            rf_r2 = r2_score(y_test, rf.predict(X_test))
+            rf_mae = mean_absolute_error(y_test, rf.predict(X_test))
             st.metric("R² Score", f"{rf_r2:.3f}")
             st.metric("MAE", f"₹{int(rf_mae):,}")
 
@@ -275,9 +231,8 @@ with tab4:
             st.markdown('<p class="section-tag">// Gradient Boosting</p>', unsafe_allow_html=True)
             gb = GradientBoostingRegressor(n_estimators=100, random_state=42)
             gb.fit(X_train, y_train)
-            gb_preds = gb.predict(X_test)
-            gb_r2 = r2_score(y_test, gb_preds)
-            gb_mae = mean_absolute_error(y_test, gb_preds)
+            gb_r2 = r2_score(y_test, gb.predict(X_test))
+            gb_mae = mean_absolute_error(y_test, gb.predict(X_test))
             st.metric("R² Score", f"{gb_r2:.3f}")
             st.metric("MAE", f"₹{int(gb_mae):,}")
 
@@ -287,9 +242,9 @@ with tab4:
 
         st.markdown("---")
         st.markdown('<p class="section-tag">// Feature Importance</p>', unsafe_allow_html=True)
-        importance_df = pd.DataFrame({'feature': FEATURES, 'importance': rf.feature_importances_}).sort_values('importance', ascending=True)
-        fig = px.bar(importance_df, x='importance', y='feature', orientation='h', color='importance',
-                     color_continuous_scale='Blues')
+        importance_df = pd.DataFrame({'feature': FEATURES, 'importance': rf.feature_importances_}).sort_values('importance')
+        fig = px.bar(importance_df, x='importance', y='feature', orientation='h',
+                     color='importance', color_continuous_scale='Blues')
         fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
                           font_color='#aac0e0', margin=dict(l=0,r=0,t=10,b=0))
         st.plotly_chart(fig, use_container_width=True)
@@ -297,26 +252,20 @@ with tab4:
         st.markdown("---")
         st.markdown('<p class="section-tag">// Predict New Product Price</p>', unsafe_allow_html=True)
         p1, p2, p3, p4 = st.columns(4)
-        with p1:
-            p_rating = st.slider("Rating", 1.0, 5.0, 4.2, 0.1)
-        with p2:
-            p_reviews = st.slider("Reviews", 1, 50000, 1000, 100)
-        with p3:
-            p_discount = st.slider("Discount %", 0, 90, 20) if 'discount_percentage' in FEATURES else 20
-        with p4:
-            p_cat = st.selectbox("Category", sorted(fdf['main_category'].unique()))
+        with p1: p_rating = st.slider("Rating", 1.0, 5.0, 4.2, 0.1)
+        with p2: p_reviews = st.slider("Reviews", 1, 50000, 1000, 100)
+        with p3: p_discount = st.slider("Discount %", 0, 90, 20) if 'discount_percentage' in FEATURES else 20
+        with p4: p_cat = st.selectbox("Category", sorted(fdf['main_category'].unique()))
 
         p_cat_enc = le.transform([p_cat])[0]
         input_data = {'rating': p_rating, 'rating_count': p_reviews, 'cat_enc': p_cat_enc}
         if 'discount_percentage' in FEATURES:
             input_data['discount_percentage'] = p_discount
-        input_row = [[input_data[f] for f in FEATURES]]
-        pred = best_model.predict(input_row)[0]
+        pred = best_model.predict([[input_data[f] for f in FEATURES]])[0]
 
         col_r1, col_r2 = st.columns(2)
         col_r1.success(f"💰 Predicted Price: ₹{int(pred):,}")
-        demand_est = p_rating * np.log1p(p_reviews)
-        col_r2.info(f"📈 Estimated Demand Score: {demand_est:.1f}")
+        col_r2.info(f"📈 Estimated Demand Score: {p_rating * np.log1p(p_reviews):.1f}")
 
         st.markdown('<p class="section-tag">// Actual vs Predicted</p>', unsafe_allow_html=True)
         avp = pd.DataFrame({'Actual': y_test.values, 'Predicted': best_model.predict(X_test)}).head(100)
@@ -336,18 +285,14 @@ with tab4:
 # ══════════════════════════════════════════════════════════════════════════════
 with tab5:
     st.markdown('<p class="section-tag">// Raw Data Explorer</p>', unsafe_allow_html=True)
-
     search = st.text_input("🔍 Search product name")
     show_cols = st.multiselect("Columns", fdf.columns.tolist(),
                                 default=['product_name','main_category','discounted_price','actual_price','rating','rating_count','demand_score'])
-
     view_df = fdf[show_cols].copy()
-    if search:
-        view_df = view_df[view_df['product_name'].str.contains(search, case=False, na=False)] if 'product_name' in show_cols else view_df
-
+    if search and 'product_name' in show_cols:
+        view_df = view_df[view_df['product_name'].str.contains(search, case=False, na=False)]
     st.dataframe(view_df.head(50), use_container_width=True)
-    csv = view_df.to_csv(index=False).encode()
-    st.download_button("⬇️ Download CSV", csv, "filtered_products.csv", "text/csv")
+    st.download_button("⬇️ Download CSV", view_df.to_csv(index=False).encode(), "filtered_products.csv", "text/csv")
 
 # ── FOOTER ────────────────────────────────────────────────────────────────────
 st.divider()
